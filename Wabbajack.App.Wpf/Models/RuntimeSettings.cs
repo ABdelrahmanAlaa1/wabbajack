@@ -1,3 +1,5 @@
+using Wabbajack.Paths;
+
 namespace Wabbajack;
 
 /// <summary>
@@ -11,4 +13,10 @@ public class RuntimeSettings
     /// with the Floating Companion Window instead of the embedded browser.
     /// </summary>
     public bool UseExternalBrowserForManualDownloads { get; set; } = false;
+    
+    /// <summary>
+    /// The current download location path for the modlist installation.
+    /// Used to inform users where to copy downloaded files when using external browser.
+    /// </summary>
+    public AbsolutePath DownloadLocation { get; set; } = default;
 }

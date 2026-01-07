@@ -83,6 +83,11 @@ public class MO2InstallerVM : ViewModel, ISubInstallerVM
         this.WhenAnyValue(x => x.UseExternalBrowserWithCompanion)
             .Subscribe(value => _runtimeSettings.UseExternalBrowserForManualDownloads = value)
             .DisposeWith(CompositeDisposable);
+        
+        // Sync the download location with runtime settings
+        DownloadLocation.WhenAnyValue(x => x.TargetPath)
+            .Subscribe(value => _runtimeSettings.DownloadLocation = value)
+            .DisposeWith(CompositeDisposable);
     }
 
     public void Unload()

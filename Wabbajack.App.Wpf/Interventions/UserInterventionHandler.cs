@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Windows;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using ReactiveUI;
@@ -92,10 +93,26 @@ public class UserInterventionHandler : IUserInterventionHandler
         {
             FloatingCompanionWindow.Show(modLinks, () =>
             {
-                // When user clicks Return, finish the intervention
-                // Note: User must manually download the file to the downloads folder
-                // The download won't be automatically captured like with the embedded browser
-                _logger.LogInformation("User returned from external browser for manual download: {Name}", md.Archive.Name);
+                // When user clicks Return, show a prompt to copy files to download directory
+                var downloadPath = _runtimeSettings.DownloadLocation != default 
+                    ? _runtimeSettings.DownloadLocation.ToString() 
+                    : "the modlist downloads folder";
+                
+                var result = MessageBox.Show(
+                    $"Please copy the downloaded file(s) to:\n\n{downloadPath}\n\nClick OK once you have copied the file(s), or Cancel to skip this download.",
+                    "Copy Downloaded Files",
+                    MessageBoxButton.OKCancel,
+                    MessageBoxImage.Information);
+                
+                if (result == MessageBoxResult.OK)
+                {
+                    _logger.LogInformation("User confirmed file copy for manual download: {Name}", md.Archive.Name);
+                }
+                else
+                {
+                    _logger.LogWarning("User skipped file copy for manual download: {Name}", md.Archive.Name);
+                }
+                
                 md.Finish(null);
             });
         });
