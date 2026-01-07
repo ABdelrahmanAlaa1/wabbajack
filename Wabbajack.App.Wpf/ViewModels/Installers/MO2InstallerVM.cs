@@ -27,6 +27,8 @@ public class MO2InstallerVM : ViewModel, ISubInstallerVM
     public FilePickerVM Location { get; }
 
     public FilePickerVM DownloadLocation { get; }
+    
+    public FilePickerVM GameFolderLocation { get; }
 
     public bool SupportsAfterInstallNavigation => true;
 
@@ -59,6 +61,13 @@ public class MO2InstallerVM : ViewModel, ISubInstallerVM
             ExistCheckOption = FilePickerVM.CheckOptions.Off,
             PathType = FilePickerVM.PathTypeOptions.Folder,
             PromptTitle = "Select a location to store downloaded mod archives.",
+        };
+        
+        GameFolderLocation = new FilePickerVM()
+        {
+            ExistCheckOption = FilePickerVM.CheckOptions.IfPathNotEmpty,
+            PathType = FilePickerVM.PathTypeOptions.Folder,
+            PromptTitle = "Select the game folder (optional - only needed if game was moved/copied).",
         };
     }
 

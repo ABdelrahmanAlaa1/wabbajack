@@ -92,6 +92,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     [Reactive] public string SlideShowDescription { get; set; }
     [Reactive] public string SuggestedInstallFolder { get; set; }
     [Reactive] public string SuggestedDownloadFolder { get; set; }
+    [Reactive] public string SuggestedGameFolder { get; set; }
 
     public WebView2 ReadmeBrowser { get; set; }
 
@@ -508,6 +509,16 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
             ConfigurationText = $"Preparing to install {metadata?.Title ?? ModList.Name}";
             ProgressText = $"Installation";
             
+            // Try to detect the game folder and set as suggestion
+            if (_gameLocator.TryFindLocation(ModList.GameType, out var detectedGamePath))
+            {
+                SuggestedGameFolder = detectedGamePath.ToString();
+            }
+            else
+            {
+                SuggestedGameFolder = $"Game not auto-detected - select {ModList.GameType.MetaData().HumanFriendlyGameName} folder";
+            }
+            
             var hex = (await WabbajackFileLocation.TargetPath.FileName.ToString().Hash()).ToHex();
             var prevSettings = await _settingsManager.Load<SavedInstallSettings>(InstallSettingsPrefix + hex);
             bool hasPrevModListInstallation = !string.IsNullOrEmpty(prevSettings?.ModListLocation.ToString()) && prevSettings.ModListLocation.FileName == path.FileName;
@@ -632,6 +643,17 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                         validgames.Add(g);
                 }
 
+                // Use manually specified game folder if provided, otherwise try auto-detect
+                var gameFolderPath = Installer.GameFolderLocation.TargetPath;
+                if (gameFolderPath == default || gameFolderPath == AbsolutePath.Empty)
+                {
+                    // Try to auto-detect, but don't fail if not found
+                    if (_gameLocator.TryFindLocation(freshModList.GameType, out var detectedPath))
+                    {
+                        gameFolderPath = detectedPath;
+                    }
+                }
+                
                 var cfg = new InstallerConfiguration
                 {
                     Game = ModList.GameType,
@@ -641,7 +663,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                     ModList = freshModList,
                     ModlistArchive = WabbajackFileLocation.TargetPath,
                     SystemParameters = _parametersConstructor.Create(),
-                    GameFolder = _gameLocator.GameLocation(freshModList.GameType)
+                    GameFolder = gameFolderPath
                 };
 
                 StandardInstaller = StandardInstaller.Create(_serviceProvider, cfg);

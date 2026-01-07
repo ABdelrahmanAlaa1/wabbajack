@@ -74,32 +74,27 @@ public class StandardInstaller : AInstaller<StandardInstaller>
         NextStep(Consts.StepPreparing, "Configuring Installer", 0);
         _logger.LogInformation("Configuring Processor");
 
-        if (_configuration.GameFolder == default)
-            _configuration.GameFolder = _gameLocator.GameLocation(_configuration.Game);
-
+        // If GameFolder is not set, try to auto-detect it
         if (_configuration.GameFolder == default)
         {
-            var otherGame = _configuration.Game.MetaData().CommonlyConfusedWith
-                .Where(g => _gameLocator.IsInstalled(g)).Select(g => g.MetaData()).FirstOrDefault();
-            if (otherGame != null)
+            if (_gameLocator.TryFindLocation(_configuration.Game, out var detectedPath))
             {
-                _logger.LogError(
-                    "In order to do a proper install Wabbajack needs to know where your {lookingFor} folder resides. However this game doesn't seem to be installed, we did however find an installed " +
-                    "copy of {otherGame}, did you install the wrong game?",
-                    _configuration.Game.MetaData().HumanFriendlyGameName, otherGame.HumanFriendlyGameName);
+                _configuration.GameFolder = detectedPath;
             }
             else
-                _logger.LogError(
-                    "In order to do a proper install Wabbajack needs to know where your {lookingFor} folder resides. However this game doesn't seem to be installed.",
+            {
+                // Log a warning but don't fail - the user might have manually copied/moved game files
+                _logger.LogWarning(
+                    "Could not auto-detect game location for {Game}. If you have moved or copied the game files, please specify the game folder manually.",
                     _configuration.Game.MetaData().HumanFriendlyGameName);
-
-            return InstallResult.GameMissing;
+            }
         }
 
-        if (!_configuration.GameFolder.DirectoryExists())
+        // Only fail if the GameFolder is specified but doesn't exist
+        if (_configuration.GameFolder != default && !_configuration.GameFolder.DirectoryExists())
         {
-            _logger.LogError("Located game {game} at \"{gameFolder}\" but the folder does not exist!",
-                _configuration.Game, _configuration.GameFolder);
+            _logger.LogError("Game folder specified at \"{gameFolder}\" but the folder does not exist!",
+                _configuration.GameFolder);
             return InstallResult.GameInvalid;
         }
 
