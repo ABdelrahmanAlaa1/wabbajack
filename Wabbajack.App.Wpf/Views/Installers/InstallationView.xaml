@@ -116,7 +116,7 @@
                     <CheckBox x:Name="UseExternalBrowserCheckBox"
                               Content="Use External Browser with Floating Companion"
                               Foreground="White"
-                              FontSize="13"
+                              FontSize="9"
                               ToolTip="When enabled, mod links will open in your default browser with a floating navigation window instead of the embedded browser."
                               IsEnabled="{Binding LoadingLock.IsNotLoading}"
                               Margin="0,5,0,0" />
