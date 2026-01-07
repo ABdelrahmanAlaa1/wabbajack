@@ -645,7 +645,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
 
                 // Use manually specified game folder if provided, otherwise try auto-detect
                 var gameFolderPath = Installer.GameFolderLocation.TargetPath;
-                if (gameFolderPath == default || gameFolderPath == AbsolutePath.Empty)
+                if (gameFolderPath == default)
                 {
                     // Try to auto-detect, but don't fail if not found
                     if (_gameLocator.TryFindLocation(freshModList.GameType, out var detectedPath))
