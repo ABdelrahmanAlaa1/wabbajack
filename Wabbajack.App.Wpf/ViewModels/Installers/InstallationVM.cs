@@ -605,6 +605,29 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
 
     private async Task BeginInstall()
     {
+        // Validate game folder before starting installation
+        var gameFolderPath = Installer.GameFolderLocation.TargetPath;
+        if (gameFolderPath != default)
+        {
+            var validationResult = GameFolderValidation.ValidateGameFolder(gameFolderPath, ModList.GameType);
+            if (validationResult.RequiresUserConfirmation)
+            {
+                var choice = await GameFolderValidation.ShowValidationDialog(validationResult);
+                switch (choice)
+                {
+                    case GameFolderValidationChoice.ReselectPath:
+                        _logger.LogInformation("User chose to reselect game folder path");
+                        return; // Exit and let user reselect
+                    case GameFolderValidationChoice.Cancel:
+                        _logger.LogInformation("User cancelled installation due to game folder validation");
+                        return;
+                    case GameFolderValidationChoice.IgnoreAndContinue:
+                        _logger.LogInformation("User chose to ignore game folder validation warning and continue");
+                        break;
+                }
+            }
+        }
+
         await Task.Run(async () =>
         {
             RxApp.MainThreadScheduler.Schedule(() =>
@@ -644,13 +667,13 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                 }
 
                 // Use manually specified game folder if provided, otherwise try auto-detect
-                var gameFolderPath = Installer.GameFolderLocation.TargetPath;
-                if (gameFolderPath == default)
+                var installerGameFolderPath = Installer.GameFolderLocation.TargetPath;
+                if (installerGameFolderPath == default)
                 {
                     // Try to auto-detect, but don't fail if not found
                     if (_gameLocator.TryFindLocation(freshModList.GameType, out var detectedPath))
                     {
-                        gameFolderPath = detectedPath;
+                        installerGameFolderPath = detectedPath;
                     }
                 }
                 
@@ -663,7 +686,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                     ModList = freshModList,
                     ModlistArchive = WabbajackFileLocation.TargetPath,
                     SystemParameters = _parametersConstructor.Create(),
-                    GameFolder = gameFolderPath
+                    GameFolder = installerGameFolderPath
                 };
 
                 StandardInstaller = StandardInstaller.Create(_serviceProvider, cfg);
