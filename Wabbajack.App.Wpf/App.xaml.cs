@@ -272,6 +272,7 @@ public partial class App
         services.AddSingleton<ResourceMonitor>();
         services.AddSingleton<Networking.GitHub.Client>();
         services.AddSingleton(s => new GitHubClient(new ProductHeaderValue("wabbajack")));
+        services.AddSingleton<RuntimeSettings>();
 
         var currentDir = (AbsolutePath)Directory.GetCurrentDirectory();
         var webViewDir = currentDir.Combine("webview2");

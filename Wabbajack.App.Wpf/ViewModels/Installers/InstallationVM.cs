@@ -141,7 +141,8 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     
     public InstallationVM(ILogger<InstallationVM> logger, DTOSerializer dtos, SettingsManager settingsManager, IServiceProvider serviceProvider,
         SystemParametersConstructor parametersConstructor, IGameLocator gameLocator, LogStream loggerProvider, ResourceMonitor resourceMonitor,
-        Services.OSIntegrated.Configuration configuration, HttpClient client, DownloadDispatcher dispatcher, IEnumerable<INeedsLogin> logins)
+        Services.OSIntegrated.Configuration configuration, HttpClient client, DownloadDispatcher dispatcher, IEnumerable<INeedsLogin> logins,
+        RuntimeSettings runtimeSettings)
     {
         _logger = logger;
         _configuration = configuration;
@@ -159,7 +160,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
         ConfigurationText = $"Loading... Please wait";
         ProgressText = $"Installation";
 
-        Installer = new MO2InstallerVM(this);
+        Installer = new MO2InstallerVM(this, runtimeSettings);
         ReadmeBrowser = serviceProvider.GetRequiredService<WebView2>();
 
         CancelCommand = ReactiveCommand.Create(CancelInstall, this.WhenAnyValue(vm => vm.LoadingLock.IsNotLoading));

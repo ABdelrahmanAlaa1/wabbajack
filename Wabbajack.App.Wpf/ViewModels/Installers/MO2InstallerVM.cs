@@ -14,6 +14,7 @@ namespace Wabbajack;
 public class MO2InstallerVM : ViewModel, ISubInstallerVM
 {
     public InstallationVM Parent { get; }
+    private readonly RuntimeSettings _runtimeSettings;
 
     [Reactive]
     public ValidationResult CanInstall { get; set; }
@@ -44,9 +45,10 @@ public class MO2InstallerVM : ViewModel, ISubInstallerVM
 
     public int ConfigVisualVerticalOffset => 25;
 
-    public MO2InstallerVM(InstallationVM installerVM)
+    public MO2InstallerVM(InstallationVM installerVM, RuntimeSettings runtimeSettings)
     {
         Parent = installerVM;
+        _runtimeSettings = runtimeSettings;
 
         Location = new FilePickerVM()
         {
@@ -76,6 +78,11 @@ public class MO2InstallerVM : ViewModel, ISubInstallerVM
             PathType = FilePickerVM.PathTypeOptions.Folder,
             PromptTitle = "Select the game folder (optional - only needed if game was moved/copied).",
         };
+        
+        // Sync the checkbox with the runtime settings
+        this.WhenAnyValue(x => x.UseExternalBrowserWithCompanion)
+            .Subscribe(value => _runtimeSettings.UseExternalBrowserForManualDownloads = value)
+            .DisposeWith(CompositeDisposable);
     }
 
     public void Unload()
