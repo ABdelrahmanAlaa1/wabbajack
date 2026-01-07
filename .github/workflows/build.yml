@@ -1,0 +1,82 @@
+name: Manual Build
+
+on:
+  workflow_dispatch:
+    inputs:
+      configuration:
+        description: 'Build configuration'
+        required: true
+        default: 'Release'
+        type: choice
+        options:
+          - Release
+          - Debug
+
+jobs:
+  build:
+    name: Build Wabbajack
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 9.0
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Restore dependencies
+        run: dotnet restore
+
+      - name: Build Wabbajack.App.Wpf
+        run: |
+          dotnet publish Wabbajack.App.Wpf/Wabbajack.App.Wpf.csproj `
+            --framework "net9.0-windows" `
+            --runtime win-x64 `
+            --configuration ${{ github.event.inputs.configuration }} `
+            /p:Platform=x64 `
+            -o ./publish/app `
+            --self-contained
+
+      - name: Build Wabbajack.Launcher
+        run: |
+          dotnet publish Wabbajack.Launcher/Wabbajack.Launcher.csproj `
+            --framework "net9.0-windows" `
+            --runtime win-x64 `
+            --configuration ${{ github.event.inputs.configuration }} `
+            /p:Platform=x64 `
+            -o ./publish/launcher `
+            /p:PublishSingleFile=true `
+            --self-contained
+
+      - name: Build Wabbajack.CLI
+        run: |
+          dotnet publish Wabbajack.CLI/Wabbajack.CLI.csproj `
+            --framework "net9.0" `
+            --runtime win-x64 `
+            --configuration ${{ github.event.inputs.configuration }} `
+            /p:Platform=x64 `
+            -o ./publish/cli `
+            --self-contained
+
+      - name: Upload App Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wabbajack-App
+          path: ./publish/app/
+          retention-days: 30
+
+      - name: Upload Launcher Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wabbajack-Launcher
+          path: ./publish/launcher/
+          retention-days: 30
+
+      - name: Upload CLI Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wabbajack-CLI
+          path: ./publish/cli/
+          retention-days: 30
