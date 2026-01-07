@@ -34,6 +34,13 @@ public class MO2InstallerVM : ViewModel, ISubInstallerVM
 
     [Reactive]
     public bool AutomaticallyOverwrite { get; set; }
+    
+    /// <summary>
+    /// When enabled, mod links will open in the user's default external browser
+    /// with a floating companion window for navigation instead of the embedded browser.
+    /// </summary>
+    [Reactive]
+    public bool UseExternalBrowserWithCompanion { get; set; }
 
     public int ConfigVisualVerticalOffset => 25;
 

@@ -66,6 +66,7 @@
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -111,7 +112,17 @@
                                       IsEnabled="{Binding LoadingLock.IsNotLoading}" />
                 </StackPanel>
 
-                <Grid Grid.Row="4">
+                <StackPanel x:Name="ExternalBrowserPanel" Grid.Row="3" Style="{StaticResource Panel}">
+                    <CheckBox x:Name="UseExternalBrowserCheckBox"
+                              Content="Use External Browser with Floating Companion"
+                              Foreground="White"
+                              FontSize="13"
+                              ToolTip="When enabled, mod links will open in your default browser with a floating navigation window instead of the embedded browser."
+                              IsEnabled="{Binding LoadingLock.IsNotLoading}"
+                              Margin="0,5,0,0" />
+                </StackPanel>
+
+                <Grid Grid.Row="5">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
