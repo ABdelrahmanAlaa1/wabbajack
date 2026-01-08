@@ -15,12 +15,13 @@ public partial class FloatingCompanionWindow : Window
     private int _currentIndex;
     private readonly Action? _onNext;
     private readonly Action? _onSkip;
-    private readonly Action? _onFinish;
+    private readonly Action? _onCancel;
+    private readonly Action? _onFinishAndCopy;
 
     /// <summary>
     /// Creates a new floating companion window with callback-based navigation.
     /// </summary>
-    public FloatingCompanionWindow(List<ModLink> modLinks, int currentIndex, Action? onNext, Action? onSkip, Action? onFinish)
+    public FloatingCompanionWindow(List<ModLink> modLinks, int currentIndex, Action? onNext, Action? onSkip, Action? onCancel, Action? onFinishAndCopy)
     {
         InitializeComponent();
         
@@ -28,15 +29,15 @@ public partial class FloatingCompanionWindow : Window
         _currentIndex = currentIndex;
         _onNext = onNext;
         _onSkip = onSkip;
-        _onFinish = onFinish;
+        _onCancel = onCancel;
+        _onFinishAndCopy = onFinishAndCopy;
         
         PreviousButton.Click += OnSkipClicked;
         NextButton.Click += OnNextClicked;
-        ReturnButton.Click += OnFinishClicked;
+        ReturnButton.Click += OnCancelOrFinishClicked;
         
         // Update button labels for clarity
         PreviousButton.Content = "Skip";
-        ReturnButton.Content = "Finish All";
         
         UpdateDisplay();
     }
@@ -45,12 +46,12 @@ public partial class FloatingCompanionWindow : Window
     /// Legacy constructor for backward compatibility.
     /// </summary>
     public FloatingCompanionWindow(List<ModLink> modLinks, Action? onReturn = null)
-        : this(modLinks, 0, null, null, onReturn)
+        : this(modLinks, 0, null, null, onReturn, onReturn)
     {
         // For legacy usage, wire up the old behavior
         PreviousButton.Click -= OnSkipClicked;
         NextButton.Click -= OnNextClicked;
-        ReturnButton.Click -= OnFinishClicked;
+        ReturnButton.Click -= OnCancelOrFinishClicked;
         
         PreviousButton.Click += OnLegacyPreviousClicked;
         NextButton.Click += OnLegacyNextClicked;
@@ -93,6 +94,7 @@ public partial class FloatingCompanionWindow : Window
             CurrentModName.Text = "";
             PreviousButton.IsEnabled = false;
             NextButton.IsEnabled = false;
+            ReturnButton.Content = "Cancel";
             return;
         }
 
@@ -103,6 +105,17 @@ public partial class FloatingCompanionWindow : Window
         PreviousButton.IsEnabled = true;
         // Next button is enabled if there are more mods
         NextButton.IsEnabled = _currentIndex < _modLinks.Count - 1;
+        
+        // Update button label based on position
+        // If on last mod, show "Finish & Copy", otherwise show "Cancel"
+        if (_currentIndex >= _modLinks.Count - 1)
+        {
+            ReturnButton.Content = "Finish && Copy";
+        }
+        else
+        {
+            ReturnButton.Content = "Cancel";
+        }
     }
 
     private void OnNextClicked(object sender, RoutedEventArgs e)
@@ -112,12 +125,31 @@ public partial class FloatingCompanionWindow : Window
 
     private void OnSkipClicked(object sender, RoutedEventArgs e)
     {
-        _onSkip?.Invoke();
+        // Show confirmation dialog before skipping
+        var result = MessageBox.Show(
+            $"Are you sure you want to skip this mod?\n\n{_modLinks[_currentIndex].Name}",
+            "Skip Mod",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        
+        if (result == MessageBoxResult.Yes)
+        {
+            _onSkip?.Invoke();
+        }
     }
 
-    private void OnFinishClicked(object sender, RoutedEventArgs e)
+    private void OnCancelOrFinishClicked(object sender, RoutedEventArgs e)
     {
-        _onFinish?.Invoke();
+        // If on last mod, this is "Finish & Copy" - trigger the finish callback
+        if (_currentIndex >= _modLinks.Count - 1)
+        {
+            _onFinishAndCopy?.Invoke();
+        }
+        else
+        {
+            // Otherwise this is "Cancel" - just cancel without file copy prompt
+            _onCancel?.Invoke();
+        }
     }
 
     // Legacy methods for backward compatibility

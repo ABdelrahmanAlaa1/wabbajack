@@ -73,13 +73,14 @@ public class ExternalBrowserDownloadManager
             // Open the first mod link in external browser
             OpenModLinkAtIndex(0);
 
-            // Show the floating companion window
+            // Show the floating companion window with separate callbacks for Cancel and Finish & Copy
             _companionWindow = new FloatingCompanionWindow(
                 _modLinks, 
                 _currentIndex,
                 OnNextClicked,
                 OnSkipClicked,
-                OnFinishClicked);
+                OnCancelClicked,
+                OnFinishAndCopyClicked);
             _companionWindow.Show();
         });
     }
@@ -116,7 +117,7 @@ public class ExternalBrowserDownloadManager
 
     private void OnSkipClicked()
     {
-        // Skip current mod without copying, move to next
+        // Skip current mod (confirmation already shown by the window), move to next
         _logger.LogWarning("User skipped mod: {Name}", _modLinks[_currentIndex].Name);
         
         if (_currentIndex < _modLinks.Count - 1)
@@ -127,17 +128,49 @@ public class ExternalBrowserDownloadManager
         }
         else
         {
-            // This was the last mod, show finish prompt
-            FinishAllDownloads();
+            // This was the last mod - just finish without file copy prompt since user chose to skip
+            FinishWithoutCopy();
         }
     }
 
-    private void OnFinishClicked()
+    private void OnCancelClicked()
     {
-        FinishAllDownloads();
+        // User clicked Cancel - finish all downloads without showing file copy prompt
+        _logger.LogInformation("User cancelled external browser downloads at mod {Index} of {Total}", 
+            _currentIndex + 1, _modLinks.Count);
+        FinishWithoutCopy();
     }
 
-    private void FinishAllDownloads()
+    private void OnFinishAndCopyClicked()
+    {
+        // User clicked "Finish & Copy" on the last mod - show file copy prompt
+        FinishWithCopyPrompt();
+    }
+
+    private void FinishWithoutCopy()
+    {
+        Application.Current.Dispatcher.Invoke(() =>
+        {
+            _companionWindow?.Close();
+            _companionWindow = null;
+
+            _logger.LogInformation("External browser download session ended without file copy for {Count} mods", _pendingDownloads.Count);
+
+            // Finish all pending downloads
+            foreach (var download in _pendingDownloads)
+            {
+                download.Finish(null);
+            }
+
+            // Reset state
+            _pendingDownloads.Clear();
+            _modLinks.Clear();
+            _currentIndex = 0;
+            _isProcessing = false;
+        });
+    }
+
+    private void FinishWithCopyPrompt()
     {
         Application.Current.Dispatcher.Invoke(() =>
         {
