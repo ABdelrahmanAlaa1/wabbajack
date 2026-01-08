@@ -107,6 +107,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     private readonly HttpClient _client;
     private readonly DownloadDispatcher _downloadDispatcher;
     private readonly IEnumerable<INeedsLogin> _logins;
+    private readonly RuntimeSettings _runtimeSettings;
     private CancellationTokenSource _cancellationTokenSource;
     public ReadOnlyObservableCollection<CPUDisplayVM> StatusList => _resourceMonitor.Tasks;
 
@@ -156,6 +157,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
         _client = client;
         _downloadDispatcher = dispatcher;
         _logins = logins;
+        _runtimeSettings = runtimeSettings;
 
         ConfigurationText = $"Loading... Please wait";
         ProgressText = $"Installation";
@@ -709,6 +711,11 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                 _logger.LogInformation("    Game: {game}", cfg.Game.ToString());
                 _logger.LogInformation("    Game folder: {gameFolder}", cfg.GameFolder);
                 _logger.LogInformation("    Other games that can be sourced from: {otherGames}", string.Join(", ", cfg.OtherGames.Select(g => g.ToString())));
+
+                // Count expected manual downloads from the modlist for the Floating Companion Window
+                var manualDownloadCount = cfg.ModList.Archives.Count(a => a.State is DTOs.DownloadStates.Manual);
+                _runtimeSettings.ExpectedManualDownloadCount = manualDownloadCount;
+                _logger.LogInformation("    Expected manual downloads: {manualDownloadCount}", manualDownloadCount);
 
                 InstallResult result;
                 using (_cancellationTokenSource = new CancellationTokenSource())

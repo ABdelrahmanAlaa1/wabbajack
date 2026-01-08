@@ -24,6 +24,7 @@ public class ExternalBrowserDownloadManager
     private FloatingCompanionWindow? _companionWindow;
     private int _currentIndex;
     private bool _isProcessing;
+    private int _expectedTotalCount;
 
     public ExternalBrowserDownloadManager(ILogger<ExternalBrowserDownloadManager> logger, RuntimeSettings runtimeSettings)
     {
@@ -48,6 +49,9 @@ public class ExternalBrowserDownloadManager
         _pendingDownloads.Add(download);
         _modLinks.Add(new ModLink(download.Archive.Name, manual.Url.ToString()));
 
+        // Get expected total from runtime settings (set before installation starts)
+        _expectedTotalCount = _runtimeSettings.ExpectedManualDownloadCount;
+        
         // If we're not already processing, start the companion window
         if (!_isProcessing)
         {
@@ -55,10 +59,10 @@ public class ExternalBrowserDownloadManager
         }
         else
         {
-            // Update the existing window to show new total
+            // Update the existing window with current count and expected total
             Application.Current.Dispatcher.Invoke(() =>
             {
-                _companionWindow?.UpdateModList(_modLinks, _currentIndex);
+                _companionWindow?.UpdateModList(_modLinks, _currentIndex, _expectedTotalCount);
             });
         }
     }
@@ -73,10 +77,14 @@ public class ExternalBrowserDownloadManager
             // Open the first mod link in external browser
             OpenModLinkAtIndex(0);
 
+            _logger.LogInformation("Starting external browser download session. Expected total: {ExpectedTotal}, Current count: {CurrentCount}", 
+                _expectedTotalCount, _modLinks.Count);
+
             // Show the floating companion window with separate callbacks for Cancel and Finish & Copy
             _companionWindow = new FloatingCompanionWindow(
                 _modLinks, 
                 _currentIndex,
+                _expectedTotalCount,
                 OnNextClicked,
                 OnSkipClicked,
                 OnCancelClicked,
@@ -167,6 +175,7 @@ public class ExternalBrowserDownloadManager
             _modLinks.Clear();
             _currentIndex = 0;
             _isProcessing = false;
+            _expectedTotalCount = 0;
         });
     }
 
@@ -208,6 +217,7 @@ public class ExternalBrowserDownloadManager
             _modLinks.Clear();
             _currentIndex = 0;
             _isProcessing = false;
+            _expectedTotalCount = 0;
         });
     }
 
@@ -231,5 +241,6 @@ public class ExternalBrowserDownloadManager
         _modLinks.Clear();
         _currentIndex = 0;
         _isProcessing = false;
+        _expectedTotalCount = 0;
     }
 }

@@ -13,6 +13,7 @@ public partial class FloatingCompanionWindow : Window
 {
     private List<ModLink> _modLinks;
     private int _currentIndex;
+    private int _expectedTotalCount; // The expected total count from modlist metadata
     private readonly Action? _onNext;
     private readonly Action? _onSkip;
     private readonly Action? _onCancel;
@@ -21,12 +22,20 @@ public partial class FloatingCompanionWindow : Window
     /// <summary>
     /// Creates a new floating companion window with callback-based navigation.
     /// </summary>
-    public FloatingCompanionWindow(List<ModLink> modLinks, int currentIndex, Action? onNext, Action? onSkip, Action? onCancel, Action? onFinishAndCopy)
+    /// <param name="modLinks">Current list of mod links</param>
+    /// <param name="currentIndex">Current index in the list</param>
+    /// <param name="expectedTotalCount">Expected total count of manual downloads (from modlist metadata)</param>
+    /// <param name="onNext">Callback when Next is clicked</param>
+    /// <param name="onSkip">Callback when Skip is clicked</param>
+    /// <param name="onCancel">Callback when Cancel is clicked</param>
+    /// <param name="onFinishAndCopy">Callback when Finish & Copy is clicked</param>
+    public FloatingCompanionWindow(List<ModLink> modLinks, int currentIndex, int expectedTotalCount, Action? onNext, Action? onSkip, Action? onCancel, Action? onFinishAndCopy)
     {
         InitializeComponent();
         
         _modLinks = modLinks ?? new List<ModLink>();
         _currentIndex = currentIndex;
+        _expectedTotalCount = expectedTotalCount > 0 ? expectedTotalCount : _modLinks.Count;
         _onNext = onNext;
         _onSkip = onSkip;
         _onCancel = onCancel;
@@ -46,7 +55,7 @@ public partial class FloatingCompanionWindow : Window
     /// Legacy constructor for backward compatibility.
     /// </summary>
     public FloatingCompanionWindow(List<ModLink> modLinks, Action? onReturn = null)
-        : this(modLinks, 0, null, null, onReturn, onReturn)
+        : this(modLinks, 0, 0, null, null, onReturn, onReturn)
     {
         // For legacy usage, wire up the old behavior
         PreviousButton.Click -= OnSkipClicked;
@@ -70,10 +79,14 @@ public partial class FloatingCompanionWindow : Window
     /// <summary>
     /// Updates the mod list and current index. Used when new mods are added during processing.
     /// </summary>
-    public void UpdateModList(List<ModLink> modLinks, int currentIndex)
+    public void UpdateModList(List<ModLink> modLinks, int currentIndex, int expectedTotalCount = 0)
     {
         _modLinks = modLinks ?? new List<ModLink>();
         _currentIndex = currentIndex;
+        if (expectedTotalCount > 0)
+        {
+            _expectedTotalCount = expectedTotalCount;
+        }
         UpdateDisplay();
     }
 
@@ -98,17 +111,22 @@ public partial class FloatingCompanionWindow : Window
             return;
         }
 
-        StatusText.Text = $"Mod {_currentIndex + 1} of {_modLinks.Count}";
+        // Use the expected total count if known, otherwise show current count
+        // This shows "Mod 1 of 1166" from the start when expected total is known
+        var displayTotal = _expectedTotalCount > _modLinks.Count ? _expectedTotalCount : _modLinks.Count;
+        StatusText.Text = $"Mod {_currentIndex + 1} of {displayTotal}";
         CurrentModName.Text = _modLinks[_currentIndex].Name;
         
         // Skip button is always enabled
         PreviousButton.IsEnabled = true;
-        // Next button is enabled if there are more mods
+        // Next button is enabled if there are more mods in the current list
         NextButton.IsEnabled = _currentIndex < _modLinks.Count - 1;
         
-        // Update button label based on position
-        // If on last mod, show "Finish & Copy", otherwise show "Cancel"
-        if (_currentIndex >= _modLinks.Count - 1)
+        // Update button label based on position relative to expected total
+        // If on last mod of expected total (or current list if no expected total), show "Finish & Copy"
+        // Otherwise show "Cancel"
+        var isOnLastMod = (_currentIndex >= _modLinks.Count - 1) && (_modLinks.Count >= _expectedTotalCount || _expectedTotalCount == 0);
+        if (isOnLastMod)
         {
             ReturnButton.Content = "Finish && Copy";
         }
@@ -140,8 +158,9 @@ public partial class FloatingCompanionWindow : Window
 
     private void OnCancelOrFinishClicked(object sender, RoutedEventArgs e)
     {
-        // If on last mod, this is "Finish & Copy" - trigger the finish callback
-        if (_currentIndex >= _modLinks.Count - 1)
+        // Check if we're on the last mod of the expected total
+        var isOnLastMod = (_currentIndex >= _modLinks.Count - 1) && (_modLinks.Count >= _expectedTotalCount || _expectedTotalCount == 0);
+        if (isOnLastMod)
         {
             _onFinishAndCopy?.Invoke();
         }

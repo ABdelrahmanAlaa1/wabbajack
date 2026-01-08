@@ -19,4 +19,11 @@ public class RuntimeSettings
     /// Used to inform users where to copy downloaded files when using external browser.
     /// </summary>
     public AbsolutePath DownloadLocation { get; set; } = default;
+    
+    /// <summary>
+    /// The expected total count of manual downloads for the current installation.
+    /// Set before installation starts by counting archives with Manual state.
+    /// This allows the Floating Companion Window to show accurate "X of Y" progress from the start.
+    /// </summary>
+    public int ExpectedManualDownloadCount { get; set; } = 0;
 }
