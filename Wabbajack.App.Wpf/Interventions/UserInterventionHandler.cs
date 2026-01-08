@@ -8,6 +8,7 @@ using ReactiveUI;
 using Wabbajack.DTOs.DownloadStates;
 using Wabbajack.DTOs.Interventions;
 using Wabbajack.Messages;
+using Wabbajack.Services;
 using Wabbajack.UserIntervention;
 using Wabbajack.Views.ModBrowserCompanion;
 
@@ -18,13 +19,17 @@ public class UserInterventionHandler : IUserInterventionHandler
     private readonly ILogger<UserInterventionHandler> _logger;
     private readonly IServiceProvider _serviceProvider;
     private readonly RuntimeSettings _runtimeSettings;
+    private readonly ExternalBrowserDownloadManager _externalBrowserManager;
 
-    public UserInterventionHandler(ILogger<UserInterventionHandler> logger, IServiceProvider serviceProvider, RuntimeSettings runtimeSettings)
+    public UserInterventionHandler(ILogger<UserInterventionHandler> logger, IServiceProvider serviceProvider, 
+        RuntimeSettings runtimeSettings, ExternalBrowserDownloadManager externalBrowserManager)
     {
         _logger = logger;
         _serviceProvider = serviceProvider;
         _runtimeSettings = runtimeSettings;
+        _externalBrowserManager = externalBrowserManager;
     }
+    
     public void Raise(IUserIntervention intervention)
     {
         switch (intervention)
@@ -35,7 +40,8 @@ public class UserInterventionHandler : IUserInterventionHandler
                 if (_runtimeSettings.UseExternalBrowserForManualDownloads)
                 {
                     // Open in external browser with floating companion window
-                    HandleManualDownloadExternal(md);
+                    // The manager accumulates all downloads and shows a single window
+                    _externalBrowserManager.AddDownload(md);
                 }
                 else
                 {
@@ -59,62 +65,5 @@ public class UserInterventionHandler : IUserInterventionHandler
 
         }
 
-    }
-    
-    private void HandleManualDownloadExternal(ManualDownload md)
-    {
-        var manual = md.Archive.State as Manual;
-        if (manual == null)
-        {
-            _logger.LogError("ManualDownload intervention has no Manual state");
-            md.Finish(null);
-            return;
-        }
-        
-        var modLink = new ModLink(md.Archive.Name, manual.Url.ToString());
-        var modLinks = new List<ModLink> { modLink };
-        
-        // Open external browser
-        try
-        {
-            Process.Start(new ProcessStartInfo
-            {
-                FileName = manual.Url.ToString(),
-                UseShellExecute = true
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to open URL in external browser: {Url}", manual.Url);
-        }
-        
-        // Show floating companion window
-        System.Windows.Application.Current.Dispatcher.Invoke(() =>
-        {
-            FloatingCompanionWindow.Show(modLinks, () =>
-            {
-                // When user clicks Return, show a prompt to copy files to download directory
-                var downloadPath = _runtimeSettings.DownloadLocation != default 
-                    ? _runtimeSettings.DownloadLocation.ToString() 
-                    : "the modlist downloads folder";
-                
-                var result = MessageBox.Show(
-                    $"Please copy the downloaded file(s) to:\n\n{downloadPath}\n\nClick OK once you have copied the file(s), or Cancel to skip this download.",
-                    "Copy Downloaded Files",
-                    MessageBoxButton.OKCancel,
-                    MessageBoxImage.Information);
-                
-                if (result == MessageBoxResult.OK)
-                {
-                    _logger.LogInformation("User confirmed file copy for manual download: {Name}", md.Archive.Name);
-                }
-                else
-                {
-                    _logger.LogWarning("User skipped file copy for manual download: {Name}", md.Archive.Name);
-                }
-                
-                md.Finish(null);
-            });
-        });
     }
 }

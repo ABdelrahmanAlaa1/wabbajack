@@ -11,29 +11,78 @@ namespace Wabbajack.Views.ModBrowserCompanion;
 /// </summary>
 public partial class FloatingCompanionWindow : Window
 {
-    private readonly List<ModLink> _modLinks;
+    private List<ModLink> _modLinks;
     private int _currentIndex;
-    private readonly Action? _onReturn;
+    private readonly Action? _onNext;
+    private readonly Action? _onSkip;
+    private readonly Action? _onFinish;
 
-    public FloatingCompanionWindow(List<ModLink> modLinks, Action? onReturn = null)
+    /// <summary>
+    /// Creates a new floating companion window with callback-based navigation.
+    /// </summary>
+    public FloatingCompanionWindow(List<ModLink> modLinks, int currentIndex, Action? onNext, Action? onSkip, Action? onFinish)
     {
         InitializeComponent();
         
         _modLinks = modLinks ?? new List<ModLink>();
-        _currentIndex = 0;
-        _onReturn = onReturn;
+        _currentIndex = currentIndex;
+        _onNext = onNext;
+        _onSkip = onSkip;
+        _onFinish = onFinish;
         
-        PreviousButton.Click += OnPreviousClicked;
+        PreviousButton.Click += OnSkipClicked;
         NextButton.Click += OnNextClicked;
-        ReturnButton.Click += OnReturnClicked;
+        ReturnButton.Click += OnFinishClicked;
+        
+        // Update button labels for clarity
+        PreviousButton.Content = "Skip";
+        ReturnButton.Content = "Finish All";
         
         UpdateDisplay();
+    }
+
+    /// <summary>
+    /// Legacy constructor for backward compatibility.
+    /// </summary>
+    public FloatingCompanionWindow(List<ModLink> modLinks, Action? onReturn = null)
+        : this(modLinks, 0, null, null, onReturn)
+    {
+        // For legacy usage, wire up the old behavior
+        PreviousButton.Click -= OnSkipClicked;
+        NextButton.Click -= OnNextClicked;
+        ReturnButton.Click -= OnFinishClicked;
+        
+        PreviousButton.Click += OnLegacyPreviousClicked;
+        NextButton.Click += OnLegacyNextClicked;
+        ReturnButton.Click += (s, e) => { onReturn?.Invoke(); Close(); };
+        
+        PreviousButton.Content = "Previous";
+        ReturnButton.Content = "Return";
         
         // Open the first mod link automatically
         if (_modLinks.Count > 0)
         {
             OpenCurrentModLink();
         }
+    }
+
+    /// <summary>
+    /// Updates the mod list and current index. Used when new mods are added during processing.
+    /// </summary>
+    public void UpdateModList(List<ModLink> modLinks, int currentIndex)
+    {
+        _modLinks = modLinks ?? new List<ModLink>();
+        _currentIndex = currentIndex;
+        UpdateDisplay();
+    }
+
+    /// <summary>
+    /// Updates just the current index.
+    /// </summary>
+    public void UpdateCurrentIndex(int currentIndex)
+    {
+        _currentIndex = currentIndex;
+        UpdateDisplay();
     }
 
     private void UpdateDisplay()
@@ -50,11 +99,29 @@ public partial class FloatingCompanionWindow : Window
         StatusText.Text = $"Mod {_currentIndex + 1} of {_modLinks.Count}";
         CurrentModName.Text = _modLinks[_currentIndex].Name;
         
-        PreviousButton.IsEnabled = _currentIndex > 0;
+        // Skip button is always enabled
+        PreviousButton.IsEnabled = true;
+        // Next button is enabled if there are more mods
         NextButton.IsEnabled = _currentIndex < _modLinks.Count - 1;
     }
 
-    private void OnPreviousClicked(object sender, RoutedEventArgs e)
+    private void OnNextClicked(object sender, RoutedEventArgs e)
+    {
+        _onNext?.Invoke();
+    }
+
+    private void OnSkipClicked(object sender, RoutedEventArgs e)
+    {
+        _onSkip?.Invoke();
+    }
+
+    private void OnFinishClicked(object sender, RoutedEventArgs e)
+    {
+        _onFinish?.Invoke();
+    }
+
+    // Legacy methods for backward compatibility
+    private void OnLegacyPreviousClicked(object sender, RoutedEventArgs e)
     {
         if (_currentIndex > 0)
         {
@@ -64,7 +131,7 @@ public partial class FloatingCompanionWindow : Window
         }
     }
 
-    private void OnNextClicked(object sender, RoutedEventArgs e)
+    private void OnLegacyNextClicked(object sender, RoutedEventArgs e)
     {
         if (_currentIndex < _modLinks.Count - 1)
         {
@@ -72,12 +139,6 @@ public partial class FloatingCompanionWindow : Window
             UpdateDisplay();
             OpenCurrentModLink();
         }
-    }
-
-    private void OnReturnClicked(object sender, RoutedEventArgs e)
-    {
-        _onReturn?.Invoke();
-        Close();
     }
 
     private void OpenCurrentModLink()
@@ -102,6 +163,7 @@ public partial class FloatingCompanionWindow : Window
 
     /// <summary>
     /// Opens the mod browser companion with the specified list of mod links.
+    /// Legacy method for backward compatibility.
     /// </summary>
     public static FloatingCompanionWindow Show(List<ModLink> modLinks, Action? onReturn = null)
     {
