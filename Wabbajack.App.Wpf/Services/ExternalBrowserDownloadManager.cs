@@ -24,12 +24,21 @@ public class ExternalBrowserDownloadManager
     private FloatingCompanionWindow? _companionWindow;
     private int _currentIndex;
     private bool _isProcessing;
-    private int _expectedTotalCount;
 
     public ExternalBrowserDownloadManager(ILogger<ExternalBrowserDownloadManager> logger, RuntimeSettings runtimeSettings)
     {
         _logger = logger;
         _runtimeSettings = runtimeSettings;
+    }
+
+    /// <summary>
+    /// Gets the expected total count of manual downloads from RuntimeSettings.
+    /// Falls back to current mod list count if not set.
+    /// </summary>
+    private int GetExpectedTotalCount()
+    {
+        var expected = _runtimeSettings.ExpectedManualDownloadCount;
+        return expected > 0 ? expected : _modLinks.Count;
     }
 
     /// <summary>
@@ -49,8 +58,9 @@ public class ExternalBrowserDownloadManager
         _pendingDownloads.Add(download);
         _modLinks.Add(new ModLink(download.Archive.Name, manual.Url.ToString()));
 
-        // Get expected total from runtime settings (set before installation starts)
-        _expectedTotalCount = _runtimeSettings.ExpectedManualDownloadCount;
+        var expectedTotal = GetExpectedTotalCount();
+        _logger.LogInformation("Added manual download {Index}/{Total}: {Name}", 
+            _modLinks.Count, expectedTotal, download.Archive.Name);
         
         // If we're not already processing, start the companion window
         if (!_isProcessing)
@@ -59,10 +69,10 @@ public class ExternalBrowserDownloadManager
         }
         else
         {
-            // Update the existing window with current count and expected total
+            // Update the existing window with current list and expected total
             Application.Current.Dispatcher.Invoke(() =>
             {
-                _companionWindow?.UpdateModList(_modLinks, _currentIndex, _expectedTotalCount);
+                _companionWindow?.UpdateModList(_modLinks, _currentIndex, expectedTotal);
             });
         }
     }
@@ -77,14 +87,15 @@ public class ExternalBrowserDownloadManager
             // Open the first mod link in external browser
             OpenModLinkAtIndex(0);
 
+            var expectedTotal = GetExpectedTotalCount();
             _logger.LogInformation("Starting external browser download session. Expected total: {ExpectedTotal}, Current count: {CurrentCount}", 
-                _expectedTotalCount, _modLinks.Count);
+                expectedTotal, _modLinks.Count);
 
             // Show the floating companion window with separate callbacks for Cancel and Finish & Copy
             _companionWindow = new FloatingCompanionWindow(
                 _modLinks, 
                 _currentIndex,
-                _expectedTotalCount,
+                expectedTotal,
                 OnNextClicked,
                 OnSkipClicked,
                 OnCancelClicked,
@@ -119,7 +130,7 @@ public class ExternalBrowserDownloadManager
         {
             _currentIndex++;
             OpenModLinkAtIndex(_currentIndex);
-            _companionWindow?.UpdateCurrentIndex(_currentIndex);
+            _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
         }
     }
 
@@ -132,7 +143,7 @@ public class ExternalBrowserDownloadManager
         {
             _currentIndex++;
             OpenModLinkAtIndex(_currentIndex);
-            _companionWindow?.UpdateCurrentIndex(_currentIndex);
+            _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
         }
         else
         {
@@ -143,10 +154,24 @@ public class ExternalBrowserDownloadManager
 
     private void OnCancelClicked()
     {
-        // User clicked Cancel - finish all downloads without showing file copy prompt
-        _logger.LogInformation("User cancelled external browser downloads at mod {Index} of {Total}", 
-            _currentIndex + 1, _modLinks.Count);
-        FinishWithoutCopy();
+        // User clicked Cancel - show confirmation dialog before cancelling the installation
+        var result = MessageBox.Show(
+            "Are you sure you want to cancel the installation?\n\nThis will stop all downloads and the installation process.",
+            "Cancel Installation",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        
+        if (result == MessageBoxResult.Yes)
+        {
+            _logger.LogInformation("User confirmed cancellation of installation at mod {Index} of {Total}", 
+                _currentIndex + 1, _modLinks.Count);
+            
+            // Cancel the installation via RuntimeSettings action
+            _runtimeSettings.CancelInstallation?.Invoke();
+            
+            // Finish without file copy prompt
+            FinishWithoutCopy();
+        }
     }
 
     private void OnFinishAndCopyClicked()
@@ -175,7 +200,6 @@ public class ExternalBrowserDownloadManager
             _modLinks.Clear();
             _currentIndex = 0;
             _isProcessing = false;
-            _expectedTotalCount = 0;
         });
     }
 
@@ -217,7 +241,6 @@ public class ExternalBrowserDownloadManager
             _modLinks.Clear();
             _currentIndex = 0;
             _isProcessing = false;
-            _expectedTotalCount = 0;
         });
     }
 
@@ -241,6 +264,5 @@ public class ExternalBrowserDownloadManager
         _modLinks.Clear();
         _currentIndex = 0;
         _isProcessing = false;
-        _expectedTotalCount = 0;
     }
 }

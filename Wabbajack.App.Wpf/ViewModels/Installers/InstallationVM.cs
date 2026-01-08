@@ -720,7 +720,17 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                 InstallResult result;
                 using (_cancellationTokenSource = new CancellationTokenSource())
                 {
+                    // Set the cancel action so external browser manager can cancel the installation
+                    _runtimeSettings.CancelInstallation = () =>
+                    {
+                        _logger.LogInformation("Installation cancelled by user via Floating Companion Window");
+                        _cancellationTokenSource?.Cancel();
+                    };
+                    
                     result = await StandardInstaller.Begin(_cancellationTokenSource.Token);
+                    
+                    // Clear the cancel action after installation completes
+                    _runtimeSettings.CancelInstallation = null;
                 }
                 if (result == Wabbajack.Installer.InstallResult.Succeeded)
                 {

@@ -1,3 +1,4 @@
+using System;
 using Wabbajack.Paths;
 
 namespace Wabbajack;
@@ -26,4 +27,9 @@ public class RuntimeSettings
     /// This allows the Floating Companion Window to show accurate "X of Y" progress from the start.
     /// </summary>
     public int ExpectedManualDownloadCount { get; set; } = 0;
+    
+    /// <summary>
+    /// Action to cancel the current installation. Set by InstallationVM when installation begins.
+    /// </summary>
+    public Action? CancelInstallation { get; set; }
 }

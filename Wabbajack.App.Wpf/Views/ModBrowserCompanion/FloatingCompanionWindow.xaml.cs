@@ -119,8 +119,12 @@ public partial class FloatingCompanionWindow : Window
         
         // Skip button is always enabled
         PreviousButton.IsEnabled = true;
+        
         // Next button is enabled if there are more mods in the current list
-        NextButton.IsEnabled = _currentIndex < _modLinks.Count - 1;
+        // OR if we expect more mods to arrive based on the expected total
+        var hasMoreModsInList = _currentIndex < _modLinks.Count - 1;
+        var expectingMoreMods = _expectedTotalCount > 0 && _modLinks.Count < _expectedTotalCount;
+        NextButton.IsEnabled = hasMoreModsInList || expectingMoreMods;
         
         // Update button label based on position relative to expected total
         // If on last mod of expected total (or current list if no expected total), show "Finish & Copy"
