@@ -713,9 +713,12 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                 _logger.LogInformation("    Other games that can be sourced from: {otherGames}", string.Join(", ", cfg.OtherGames.Select(g => g.ToString())));
 
                 // Count expected manual downloads from the modlist for the Floating Companion Window
-                var manualDownloadCount = cfg.ModList.Archives.Count(a => a.State is DTOs.DownloadStates.Manual);
+                // Include both Manual state archives AND Nexus archives (which become manual downloads without Premium)
+                var manualDownloadCount = cfg.ModList.Archives.Count(a => 
+                    a.State is DTOs.DownloadStates.Manual || 
+                    a.State is DTOs.DownloadStates.Nexus);
                 _runtimeSettings.ExpectedManualDownloadCount = manualDownloadCount;
-                _logger.LogInformation("    Expected manual downloads: {manualDownloadCount}", manualDownloadCount);
+                _logger.LogInformation("    Expected manual downloads (Manual + Nexus): {manualDownloadCount}", manualDownloadCount);
 
                 InstallResult result;
                 using (_cancellationTokenSource = new CancellationTokenSource())
