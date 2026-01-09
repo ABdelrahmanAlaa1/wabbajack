@@ -24,6 +24,7 @@ public class ExternalBrowserDownloadManager
     private FloatingCompanionWindow? _companionWindow;
     private int _currentIndex;
     private bool _isProcessing;
+    private bool _isCancelled;
 
     public ExternalBrowserDownloadManager(ILogger<ExternalBrowserDownloadManager> logger, RuntimeSettings runtimeSettings)
     {
@@ -47,6 +48,14 @@ public class ExternalBrowserDownloadManager
     /// </summary>
     public void AddDownload(ManualDownload download)
     {
+        // If installation was cancelled, immediately reject the download
+        if (_isCancelled)
+        {
+            _logger.LogInformation("Installation cancelled - rejecting new download: {Name}", download.Archive.Name);
+            download.Finish(null);
+            return;
+        }
+        
         var manual = download.Archive.State as Manual;
         if (manual == null)
         {
@@ -80,6 +89,7 @@ public class ExternalBrowserDownloadManager
     private void StartProcessing()
     {
         _isProcessing = true;
+        _isCancelled = false;
         _currentIndex = 0;
 
         Application.Current.Dispatcher.Invoke(() =>
@@ -165,6 +175,9 @@ public class ExternalBrowserDownloadManager
         {
             _logger.LogInformation("User confirmed cancellation of installation at mod {Index} of {Total}", 
                 _currentIndex + 1, _modLinks.Count);
+            
+            // Mark as cancelled to reject any future downloads
+            _isCancelled = true;
             
             // Cancel the installation via RuntimeSettings action
             _runtimeSettings.CancelInstallation?.Invoke();
@@ -264,5 +277,6 @@ public class ExternalBrowserDownloadManager
         _modLinks.Clear();
         _currentIndex = 0;
         _isProcessing = false;
+        _isCancelled = false;
     }
 }
