@@ -714,7 +714,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
 
                 // Set total archive count for the Floating Companion Window
                 // Use total archive count since all downloads may require manual intervention
-                var totalArchiveCount = cfg.ModList.Archives.Count;
+                var totalArchiveCount = cfg.ModList.Archives.Length;
                 _runtimeSettings.ExpectedManualDownloadCount = totalArchiveCount;
                 _logger.LogInformation("    Total archive count: {totalArchiveCount}", totalArchiveCount);
 
