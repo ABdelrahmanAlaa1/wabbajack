@@ -25,7 +25,6 @@ public class ExternalBrowserDownloadManager
     private int _currentIndex;
     private bool _isProcessing;
     private bool _isCancelled;
-    private bool _waitingForNextMod; // True when user clicked Next but no next mod was available yet
 
     public ExternalBrowserDownloadManager(ILogger<ExternalBrowserDownloadManager> logger, RuntimeSettings runtimeSettings)
     {
@@ -82,15 +81,6 @@ public class ExternalBrowserDownloadManager
             // Update the existing window with current list and expected total
             Application.Current.Dispatcher.Invoke(() =>
             {
-                // If user clicked "Next" and was waiting for a new mod, auto-advance now
-                if (_waitingForNextMod && _currentIndex < _modLinks.Count - 1)
-                {
-                    _waitingForNextMod = false;
-                    _currentIndex++;
-                    OpenModLinkAtIndex(_currentIndex);
-                    _logger.LogInformation("Auto-advanced to next mod after it became available: {Name}", _modLinks[_currentIndex].Name);
-                }
-                
                 _companionWindow?.UpdateModList(_modLinks, _currentIndex, expectedTotal);
             });
         }
@@ -146,64 +136,36 @@ public class ExternalBrowserDownloadManager
 
     private void OnNextClicked()
     {
+        // Log this mod as processed/skipped (useful for tracking what was skipped for future download)
+        _logger.LogInformation("User processed mod (Next): {Name}", _modLinks[_currentIndex].Name);
+        
         if (_currentIndex < _modLinks.Count - 1)
         {
-            // There's a next mod available in the list - advance to it
             _currentIndex++;
-            _waitingForNextMod = false;
             OpenModLinkAtIndex(_currentIndex);
             _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
-            _logger.LogInformation("Advanced to mod {Index}/{Total}: {Name}", 
-                _currentIndex + 1, GetExpectedTotalCount(), _modLinks[_currentIndex].Name);
         }
-        else if (_modLinks.Count < GetExpectedTotalCount())
+        else
         {
-            // No next mod in list yet, but we expect more - set waiting flag
-            // The UI already shows the button as enabled based on expected total
-            _waitingForNextMod = true;
-            _logger.LogInformation("Waiting for next mod to arrive... (current: {Current}, expected: {Expected})", 
-                _modLinks.Count, GetExpectedTotalCount());
-            
-            // Show a message to the user that we're waiting
-            MessageBox.Show(
-                "Waiting for the next mod to be processed...\n\nThe next download link will open automatically when available.",
-                "Waiting for Next Mod",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
+            // This was the last mod - finish without file copy prompt
+            FinishWithoutCopy();
         }
     }
 
     private void OnSkipClicked()
     {
-        // Skip current mod (confirmation already shown by the window), move to next
+        // Log this mod as skipped (useful for tracking what was skipped for future download)
         _logger.LogWarning("User skipped mod: {Name}", _modLinks[_currentIndex].Name);
         
         if (_currentIndex < _modLinks.Count - 1)
         {
-            // There's a next mod available - advance to it
             _currentIndex++;
-            _waitingForNextMod = false;
             OpenModLinkAtIndex(_currentIndex);
             _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
-            _logger.LogInformation("Skipped to mod {Index}/{Total}: {Name}", 
-                _currentIndex + 1, GetExpectedTotalCount(), _modLinks[_currentIndex].Name);
-        }
-        else if (_modLinks.Count < GetExpectedTotalCount())
-        {
-            // No next mod yet but expecting more - set waiting flag (skip counts as advancing)
-            _waitingForNextMod = true;
-            _logger.LogInformation("Skipped current mod, waiting for next mod to arrive... (current: {Current}, expected: {Expected})", 
-                _modLinks.Count, GetExpectedTotalCount());
-            
-            MessageBox.Show(
-                "Current mod skipped.\n\nWaiting for the next mod to be processed...\nThe next download link will open automatically when available.",
-                "Waiting for Next Mod",
-                MessageBoxButton.OK,
-                MessageBoxImage.Information);
         }
         else
         {
-            // This was the last mod - just finish without file copy prompt since user chose to skip
+            // This was the last mod - finish without file copy prompt
             FinishWithoutCopy();
         }
     }
@@ -259,7 +221,6 @@ public class ExternalBrowserDownloadManager
             _modLinks.Clear();
             _currentIndex = 0;
             _isProcessing = false;
-            _waitingForNextMod = false;
         });
     }
 
@@ -301,7 +262,6 @@ public class ExternalBrowserDownloadManager
             _modLinks.Clear();
             _currentIndex = 0;
             _isProcessing = false;
-            _waitingForNextMod = false;
         });
     }
 
@@ -326,6 +286,5 @@ public class ExternalBrowserDownloadManager
         _currentIndex = 0;
         _isProcessing = false;
         _isCancelled = false;
-        _waitingForNextMod = false;
     }
 }
