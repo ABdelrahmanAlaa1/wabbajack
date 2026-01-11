@@ -82,6 +82,14 @@ public class ExternalBrowserDownloadManager
             Application.Current.Dispatcher.Invoke(() =>
             {
                 _companionWindow?.UpdateModList(_modLinks, _currentIndex, expectedTotal);
+                
+                // If the user has already advanced past the previous list count,
+                // open this newly added mod link automatically
+                var newModIndex = _modLinks.Count - 1;
+                if (_currentIndex == newModIndex)
+                {
+                    OpenModLinkAtIndex(_currentIndex);
+                }
             });
         }
     }
@@ -136,36 +144,42 @@ public class ExternalBrowserDownloadManager
 
     private void OnNextClicked()
     {
-        // Advance to next mod (same behavior as Skip, but without logging as skipped)
-        if (_currentIndex < _modLinks.Count - 1)
+        // Unconditionally increment the counter - user's click is the only confirmation needed
+        _currentIndex++;
+        
+        // Update the UI immediately to show the new index (e.g., "2 of 1166")
+        _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
+        
+        // Open the next link if available
+        if (_currentIndex < _modLinks.Count)
         {
-            _currentIndex++;
             OpenModLinkAtIndex(_currentIndex);
-            _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
         }
-        else
-        {
-            // This was the last mod - finish without file copy prompt
-            FinishWithoutCopy();
-        }
+        // If no more mods are available yet, the UI will show "Waiting for next mod..."
+        // and the link will be opened when the mod arrives via AddDownload
     }
 
     private void OnSkipClicked()
     {
         // Log this mod as skipped (useful for tracking what was skipped for future download)
-        _logger.LogWarning("User skipped mod: {Name}", _modLinks[_currentIndex].Name);
+        if (_currentIndex < _modLinks.Count)
+        {
+            _logger.LogWarning("User skipped mod: {Name}", _modLinks[_currentIndex].Name);
+        }
         
-        if (_currentIndex < _modLinks.Count - 1)
+        // Unconditionally increment the counter - user's click is the only confirmation needed
+        _currentIndex++;
+        
+        // Update the UI immediately to show the new index (e.g., "2 of 1166")
+        _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
+        
+        // Open the next link if available
+        if (_currentIndex < _modLinks.Count)
         {
-            _currentIndex++;
             OpenModLinkAtIndex(_currentIndex);
-            _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
         }
-        else
-        {
-            // This was the last mod - finish without file copy prompt
-            FinishWithoutCopy();
-        }
+        // If no more mods are available yet, the UI will show "Waiting for next mod..."
+        // and the link will be opened when the mod arrives via AddDownload
     }
 
     private void OnCancelClicked()
