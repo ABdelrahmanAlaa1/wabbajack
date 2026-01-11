@@ -147,8 +147,17 @@ public partial class FloatingCompanionWindow : Window
 
     private void OnSkipClicked(object sender, RoutedEventArgs e)
     {
-        // Invoke skip callback directly (no confirmation dialog for easy auto-clicking)
-        _onSkip?.Invoke();
+        // Show confirmation dialog before skipping
+        var result = MessageBox.Show(
+            $"Are you sure you want to skip this mod?\n\n{_modLinks[_currentIndex].Name}",
+            "Skip Mod",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Question);
+        
+        if (result == MessageBoxResult.Yes)
+        {
+            _onSkip?.Invoke();
+        }
     }
 
     private void OnCancelOrFinishClicked(object sender, RoutedEventArgs e)
