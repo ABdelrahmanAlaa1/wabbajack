@@ -85,8 +85,7 @@ public class ExternalBrowserDownloadManager
                 
                 // If the user has already advanced past the previous list count,
                 // open this newly added mod link automatically
-                var newModIndex = _modLinks.Count - 1;
-                if (_currentIndex == newModIndex)
+                if (_currentIndex == _modLinks.Count - 1)
                 {
                     OpenModLinkAtIndex(_currentIndex);
                 }
