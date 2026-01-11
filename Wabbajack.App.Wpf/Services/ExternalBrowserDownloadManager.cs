@@ -82,13 +82,6 @@ public class ExternalBrowserDownloadManager
             Application.Current.Dispatcher.Invoke(() =>
             {
                 _companionWindow?.UpdateModList(_modLinks, _currentIndex, expectedTotal);
-                
-                // If the user has already advanced past the previous list count,
-                // open this newly added mod link automatically
-                if (_currentIndex == _modLinks.Count - 1)
-                {
-                    OpenModLinkAtIndex(_currentIndex);
-                }
             });
         }
     }
@@ -143,19 +136,10 @@ public class ExternalBrowserDownloadManager
 
     private void OnNextClicked()
     {
-        // Unconditionally increment the counter - user's click is the only confirmation needed
+        // Increment counter and open next link - simple increment after sending to browser
         _currentIndex++;
-        
-        // Update the UI immediately to show the new index (e.g., "2 of 1166")
+        OpenModLinkAtIndex(_currentIndex);
         _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
-        
-        // Open the next link if available
-        if (_currentIndex < _modLinks.Count)
-        {
-            OpenModLinkAtIndex(_currentIndex);
-        }
-        // If no more mods are available yet, the UI will show "Waiting for next mod..."
-        // and the link will be opened when the mod arrives via AddDownload
     }
 
     private void OnSkipClicked()
@@ -166,19 +150,10 @@ public class ExternalBrowserDownloadManager
             _logger.LogWarning("User skipped mod: {Name}", _modLinks[_currentIndex].Name);
         }
         
-        // Unconditionally increment the counter - user's click is the only confirmation needed
+        // Increment counter and open next link - simple increment after sending to browser
         _currentIndex++;
-        
-        // Update the UI immediately to show the new index (e.g., "2 of 1166")
+        OpenModLinkAtIndex(_currentIndex);
         _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
-        
-        // Open the next link if available
-        if (_currentIndex < _modLinks.Count)
-        {
-            OpenModLinkAtIndex(_currentIndex);
-        }
-        // If no more mods are available yet, the UI will show "Waiting for next mod..."
-        // and the link will be opened when the mod arrives via AddDownload
     }
 
     private void OnCancelClicked()
