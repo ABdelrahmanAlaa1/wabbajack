@@ -136,9 +136,7 @@ public class ExternalBrowserDownloadManager
 
     private void OnNextClicked()
     {
-        // Log this mod as processed/skipped (useful for tracking what was skipped for future download)
-        _logger.LogInformation("User processed mod (Next): {Name}", _modLinks[_currentIndex].Name);
-        
+        // Advance to next mod (same behavior as Skip, but without logging as skipped)
         if (_currentIndex < _modLinks.Count - 1)
         {
             _currentIndex++;
