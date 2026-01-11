@@ -115,32 +115,22 @@ public partial class FloatingCompanionWindow : Window
         // This shows "Mod 1 of 1166" from the start when expected total is known
         var displayTotal = _expectedTotalCount > _modLinks.Count ? _expectedTotalCount : _modLinks.Count;
         StatusText.Text = $"Mod {_currentIndex + 1} of {displayTotal}";
+        CurrentModName.Text = _modLinks[_currentIndex].Name;
         
-        // Handle case where user has advanced past the current list count
-        // (waiting for the next mod to arrive)
-        if (_currentIndex < _modLinks.Count)
-        {
-            CurrentModName.Text = _modLinks[_currentIndex].Name;
-        }
-        else
-        {
-            CurrentModName.Text = "Waiting for next mod...";
-        }
-        
-        // Skip button is enabled if we have a current mod to skip
-        PreviousButton.IsEnabled = _currentIndex < _modLinks.Count;
+        // Skip button is always enabled
+        PreviousButton.IsEnabled = true;
         
         // Next button is enabled if there are more mods in the current list
         // OR if we expect more mods to arrive based on the expected total
         var hasMoreModsInList = _currentIndex < _modLinks.Count - 1;
-        var expectingMoreMods = _expectedTotalCount > 0 && (_currentIndex + 1) < _expectedTotalCount;
+        var expectingMoreMods = _expectedTotalCount > 0 && _modLinks.Count < _expectedTotalCount;
         NextButton.IsEnabled = hasMoreModsInList || expectingMoreMods;
         
         // Update button label based on position relative to expected total
         // If on last mod of expected total (or current list if no expected total), show "Finish & Copy"
         // Otherwise show "Cancel"
-        var isOnLastMod = (_currentIndex >= _expectedTotalCount - 1) && (_expectedTotalCount > 0 || _currentIndex >= _modLinks.Count - 1);
-        if (isOnLastMod && _currentIndex < _modLinks.Count)
+        var isOnLastMod = (_currentIndex >= _modLinks.Count - 1) && (_modLinks.Count >= _expectedTotalCount || _expectedTotalCount == 0);
+        if (isOnLastMod)
         {
             ReturnButton.Content = "Finish && Copy";
         }
@@ -158,11 +148,8 @@ public partial class FloatingCompanionWindow : Window
     private void OnSkipClicked(object sender, RoutedEventArgs e)
     {
         // Show confirmation dialog before skipping
-        var modName = _currentIndex < _modLinks.Count 
-            ? _modLinks[_currentIndex].Name 
-            : "Unknown mod";
         var result = MessageBox.Show(
-            $"Are you sure you want to skip this mod?\n\n{modName}",
+            $"Are you sure you want to skip this mod?\n\n{_modLinks[_currentIndex].Name}",
             "Skip Mod",
             MessageBoxButton.YesNo,
             MessageBoxImage.Question);
@@ -176,8 +163,8 @@ public partial class FloatingCompanionWindow : Window
     private void OnCancelOrFinishClicked(object sender, RoutedEventArgs e)
     {
         // Check if we're on the last mod of the expected total
-        var isOnLastMod = (_currentIndex >= _expectedTotalCount - 1) && (_expectedTotalCount > 0 || _currentIndex >= _modLinks.Count - 1);
-        if (isOnLastMod && _currentIndex < _modLinks.Count)
+        var isOnLastMod = (_currentIndex >= _modLinks.Count - 1) && (_modLinks.Count >= _expectedTotalCount || _expectedTotalCount == 0);
+        if (isOnLastMod)
         {
             _onFinishAndCopy?.Invoke();
         }
