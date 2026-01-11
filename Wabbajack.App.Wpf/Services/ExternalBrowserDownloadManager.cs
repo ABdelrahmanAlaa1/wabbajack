@@ -134,9 +134,19 @@ public class ExternalBrowserDownloadManager
         }
     }
 
-    private void OnNextClicked()
+    /// <summary>
+    /// Advances to the next mod in the list. Used by both Next and Skip buttons.
+    /// </summary>
+    /// <param name="isSkip">If true, logs a warning that the mod was skipped</param>
+    private void AdvanceToNextMod(bool isSkip)
     {
-        // Advance to next mod (same behavior as Skip, but without logging as skipped)
+        // Only difference: Skip logs a warning for tracking skipped mods
+        if (isSkip)
+        {
+            _logger.LogWarning("User skipped mod: {Name}", _modLinks[_currentIndex].Name);
+        }
+        
+        // Same logic for both Next and Skip
         if (_currentIndex < _modLinks.Count - 1)
         {
             _currentIndex++;
@@ -150,22 +160,14 @@ public class ExternalBrowserDownloadManager
         }
     }
 
+    private void OnNextClicked()
+    {
+        AdvanceToNextMod(isSkip: false);
+    }
+
     private void OnSkipClicked()
     {
-        // Log this mod as skipped (useful for tracking what was skipped for future download)
-        _logger.LogWarning("User skipped mod: {Name}", _modLinks[_currentIndex].Name);
-        
-        if (_currentIndex < _modLinks.Count - 1)
-        {
-            _currentIndex++;
-            OpenModLinkAtIndex(_currentIndex);
-            _companionWindow?.UpdateModList(_modLinks, _currentIndex, GetExpectedTotalCount());
-        }
-        else
-        {
-            // This was the last mod - finish without file copy prompt
-            FinishWithoutCopy();
-        }
+        AdvanceToNextMod(isSkip: true);
     }
 
     private void OnCancelClicked()
