@@ -31,6 +31,12 @@ public partial class InstallationView : ReactiveUserControl<InstallationVM>
             this.Bind(ViewModel, vm => vm.Installer.DownloadLocation, view => view.DownloadLocationPicker.PickerVM)
                 .DisposeWith(disposables);
 
+            this.Bind(ViewModel, vm => vm.Installer.GameFolderLocation, view => view.GameFolderPicker.PickerVM)
+                .DisposeWith(disposables);
+
+            this.Bind(ViewModel, vm => vm.Installer.UseExternalBrowserWithCompanion, view => view.UseExternalBrowserCheckBox.IsChecked)
+                .DisposeWith(disposables);
+
             InstallationLocationPicker.PickerVM.AdditionalError = ViewModel.WhenAnyValue(vm => vm.ValidationResult).Where(vr => vr is InstallPathValidationResult);
             DownloadLocationPicker.PickerVM.AdditionalError = ViewModel.WhenAnyValue(vm => vm.ValidationResult).Where(vr => vr is DownloadsPathValidationResult);
             ViewModel.WhenAnyValue(vm => vm.ValidationResult)
@@ -176,6 +182,14 @@ public partial class InstallationView : ReactiveUserControl<InstallationVM>
                          DownloadLocationPicker.Watermark = x;
                          if (string.IsNullOrEmpty(ViewModel?.Installer?.DownloadLocation?.TargetPath.ToString()))
                              ViewModel.Installer.DownloadLocation.TargetPath = (AbsolutePath)x;
+                     })
+                    .DisposeWith(disposables);
+
+            ViewModel.WhenAnyValue(vm => vm.SuggestedGameFolder)
+                     .ObserveOnGuiThread()
+                     .Subscribe(x =>
+                     {
+                         GameFolderPicker.Watermark = x;
                      })
                     .DisposeWith(disposables);
 

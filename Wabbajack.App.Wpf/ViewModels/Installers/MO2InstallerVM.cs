@@ -14,6 +14,7 @@ namespace Wabbajack;
 public class MO2InstallerVM : ViewModel, ISubInstallerVM
 {
     public InstallationVM Parent { get; }
+    private readonly RuntimeSettings _runtimeSettings;
 
     [Reactive]
     public ValidationResult CanInstall { get; set; }
@@ -27,17 +28,27 @@ public class MO2InstallerVM : ViewModel, ISubInstallerVM
     public FilePickerVM Location { get; }
 
     public FilePickerVM DownloadLocation { get; }
+    
+    public FilePickerVM GameFolderLocation { get; }
 
     public bool SupportsAfterInstallNavigation => true;
 
     [Reactive]
     public bool AutomaticallyOverwrite { get; set; }
+    
+    /// <summary>
+    /// When enabled, mod links will open in the user's default external browser
+    /// with a floating companion window for navigation instead of the embedded browser.
+    /// </summary>
+    [Reactive]
+    public bool UseExternalBrowserWithCompanion { get; set; }
 
     public int ConfigVisualVerticalOffset => 25;
 
-    public MO2InstallerVM(InstallationVM installerVM)
+    public MO2InstallerVM(InstallationVM installerVM, RuntimeSettings runtimeSettings)
     {
         Parent = installerVM;
+        _runtimeSettings = runtimeSettings;
 
         Location = new FilePickerVM()
         {
@@ -60,6 +71,23 @@ public class MO2InstallerVM : ViewModel, ISubInstallerVM
             PathType = FilePickerVM.PathTypeOptions.Folder,
             PromptTitle = "Select a location to store downloaded mod archives.",
         };
+        
+        GameFolderLocation = new FilePickerVM()
+        {
+            ExistCheckOption = FilePickerVM.CheckOptions.IfPathNotEmpty,
+            PathType = FilePickerVM.PathTypeOptions.Folder,
+            PromptTitle = "Select the game folder (optional - only needed if game was moved/copied).",
+        };
+        
+        // Sync the checkbox with the runtime settings
+        this.WhenAnyValue(x => x.UseExternalBrowserWithCompanion)
+            .Subscribe(value => _runtimeSettings.UseExternalBrowserForManualDownloads = value)
+            .DisposeWith(CompositeDisposable);
+        
+        // Sync the download location with runtime settings
+        DownloadLocation.WhenAnyValue(x => x.TargetPath)
+            .Subscribe(value => _runtimeSettings.DownloadLocation = value)
+            .DisposeWith(CompositeDisposable);
     }
 
     public void Unload()

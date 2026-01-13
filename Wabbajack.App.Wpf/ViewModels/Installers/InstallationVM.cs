@@ -92,6 +92,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     [Reactive] public string SlideShowDescription { get; set; }
     [Reactive] public string SuggestedInstallFolder { get; set; }
     [Reactive] public string SuggestedDownloadFolder { get; set; }
+    [Reactive] public string SuggestedGameFolder { get; set; }
 
     public WebView2 ReadmeBrowser { get; set; }
 
@@ -106,6 +107,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     private readonly HttpClient _client;
     private readonly DownloadDispatcher _downloadDispatcher;
     private readonly IEnumerable<INeedsLogin> _logins;
+    private readonly RuntimeSettings _runtimeSettings;
     private CancellationTokenSource _cancellationTokenSource;
     public ReadOnlyObservableCollection<CPUDisplayVM> StatusList => _resourceMonitor.Tasks;
 
@@ -140,7 +142,8 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
     
     public InstallationVM(ILogger<InstallationVM> logger, DTOSerializer dtos, SettingsManager settingsManager, IServiceProvider serviceProvider,
         SystemParametersConstructor parametersConstructor, IGameLocator gameLocator, LogStream loggerProvider, ResourceMonitor resourceMonitor,
-        Services.OSIntegrated.Configuration configuration, HttpClient client, DownloadDispatcher dispatcher, IEnumerable<INeedsLogin> logins)
+        Services.OSIntegrated.Configuration configuration, HttpClient client, DownloadDispatcher dispatcher, IEnumerable<INeedsLogin> logins,
+        RuntimeSettings runtimeSettings)
     {
         _logger = logger;
         _configuration = configuration;
@@ -154,11 +157,12 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
         _client = client;
         _downloadDispatcher = dispatcher;
         _logins = logins;
+        _runtimeSettings = runtimeSettings;
 
         ConfigurationText = $"Loading... Please wait";
         ProgressText = $"Installation";
 
-        Installer = new MO2InstallerVM(this);
+        Installer = new MO2InstallerVM(this, runtimeSettings);
         ReadmeBrowser = serviceProvider.GetRequiredService<WebView2>();
 
         CancelCommand = ReactiveCommand.Create(CancelInstall, this.WhenAnyValue(vm => vm.LoadingLock.IsNotLoading));
@@ -508,6 +512,16 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
             ConfigurationText = $"Preparing to install {metadata?.Title ?? ModList.Name}";
             ProgressText = $"Installation";
             
+            // Try to detect the game folder and set as suggestion
+            if (_gameLocator.TryFindLocation(ModList.GameType, out var detectedGamePath))
+            {
+                SuggestedGameFolder = detectedGamePath.ToString();
+            }
+            else
+            {
+                SuggestedGameFolder = $"Game not auto-detected - select {ModList.GameType.MetaData().HumanFriendlyGameName} folder";
+            }
+            
             var hex = (await WabbajackFileLocation.TargetPath.FileName.ToString().Hash()).ToHex();
             var prevSettings = await _settingsManager.Load<SavedInstallSettings>(InstallSettingsPrefix + hex);
             bool hasPrevModListInstallation = !string.IsNullOrEmpty(prevSettings?.ModListLocation.ToString()) && prevSettings.ModListLocation.FileName == path.FileName;
@@ -594,6 +608,29 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
 
     private async Task BeginInstall()
     {
+        // Validate game folder before starting installation
+        var gameFolderPath = Installer.GameFolderLocation.TargetPath;
+        if (gameFolderPath != default)
+        {
+            var validationResult = GameFolderValidation.ValidateGameFolder(gameFolderPath, ModList.GameType);
+            if (validationResult.RequiresUserConfirmation)
+            {
+                var choice = await GameFolderValidation.ShowValidationDialog(validationResult);
+                switch (choice)
+                {
+                    case GameFolderValidationChoice.ReselectPath:
+                        _logger.LogInformation("User chose to reselect game folder path");
+                        return; // Exit and let user reselect
+                    case GameFolderValidationChoice.Cancel:
+                        _logger.LogInformation("User cancelled installation due to game folder validation");
+                        return;
+                    case GameFolderValidationChoice.IgnoreAndContinue:
+                        _logger.LogInformation("User chose to ignore game folder validation warning and continue");
+                        break;
+                }
+            }
+        }
+
         await Task.Run(async () =>
         {
             RxApp.MainThreadScheduler.Schedule(() =>
@@ -632,6 +669,17 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                         validgames.Add(g);
                 }
 
+                // Use manually specified game folder if provided, otherwise try auto-detect
+                var installerGameFolderPath = Installer.GameFolderLocation.TargetPath;
+                if (installerGameFolderPath == default)
+                {
+                    // Try to auto-detect, but don't fail if not found
+                    if (_gameLocator.TryFindLocation(freshModList.GameType, out var detectedPath))
+                    {
+                        installerGameFolderPath = detectedPath;
+                    }
+                }
+                
                 var cfg = new InstallerConfiguration
                 {
                     Game = ModList.GameType,
@@ -641,7 +689,7 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                     ModList = freshModList,
                     ModlistArchive = WabbajackFileLocation.TargetPath,
                     SystemParameters = _parametersConstructor.Create(),
-                    GameFolder = _gameLocator.GameLocation(freshModList.GameType)
+                    GameFolder = installerGameFolderPath
                 };
 
                 StandardInstaller = StandardInstaller.Create(_serviceProvider, cfg);
@@ -664,10 +712,26 @@ public class InstallationVM : ProgressViewModel, ICpuStatusVM
                 _logger.LogInformation("    Game folder: {gameFolder}", cfg.GameFolder);
                 _logger.LogInformation("    Other games that can be sourced from: {otherGames}", string.Join(", ", cfg.OtherGames.Select(g => g.ToString())));
 
+                // Set total archive count for the Floating Companion Window
+                // Use total archive count since all downloads may require manual intervention
+                var totalArchiveCount = cfg.ModList.Archives.Length;
+                _runtimeSettings.ExpectedManualDownloadCount = totalArchiveCount;
+                _logger.LogInformation("    Total archive count: {totalArchiveCount}", totalArchiveCount);
+
                 InstallResult result;
                 using (_cancellationTokenSource = new CancellationTokenSource())
                 {
+                    // Set the cancel action so external browser manager can cancel the installation
+                    _runtimeSettings.CancelInstallation = () =>
+                    {
+                        _logger.LogInformation("Installation cancelled by user via Floating Companion Window");
+                        _cancellationTokenSource?.Cancel();
+                    };
+                    
                     result = await StandardInstaller.Begin(_cancellationTokenSource.Token);
+                    
+                    // Clear the cancel action after installation completes
+                    _runtimeSettings.CancelInstallation = null;
                 }
                 if (result == Wabbajack.Installer.InstallResult.Succeeded)
                 {

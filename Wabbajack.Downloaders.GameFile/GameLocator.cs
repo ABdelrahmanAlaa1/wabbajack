@@ -31,6 +31,7 @@ public class GameLocator : IGameLocator
     private readonly Dictionary<EADesktopGameId, AbsolutePath> _eaDesktopGames = new();
     
     private readonly Dictionary<Game, AbsolutePath> _locationCache;
+    private readonly Dictionary<Game, AbsolutePath> _locationOverrides = new();
     private readonly ILogger<GameLocator> _logger;
 
     public GameLocator(ILogger<GameLocator> logger)
@@ -156,6 +157,13 @@ public class GameLocator : IGameLocator
 
     public bool TryFindLocation(Game game, out AbsolutePath path)
     {
+        lock (_locationOverrides)
+        {
+            // Check for manual override first
+            if (_locationOverrides.TryGetValue(game, out path))
+                return true;
+        }
+        
         lock (_locationCache)
         {
             if (_locationCache.TryGetValue(game, out path))
@@ -169,6 +177,26 @@ public class GameLocator : IGameLocator
         }
 
         return false;
+    }
+    
+    public void SetGameLocationOverride(Game game, AbsolutePath path)
+    {
+        lock (_locationOverrides)
+        {
+            _locationOverrides[game] = path;
+            _logger.LogInformation("Set game location override for {Game} to {Path}", game, path);
+        }
+    }
+    
+    public void ClearGameLocationOverride(Game game)
+    {
+        lock (_locationOverrides)
+        {
+            if (_locationOverrides.Remove(game))
+            {
+                _logger.LogInformation("Cleared game location override for {Game}", game);
+            }
+        }
     }
 
     private bool TryFindLocationInner(Game game, out AbsolutePath path)

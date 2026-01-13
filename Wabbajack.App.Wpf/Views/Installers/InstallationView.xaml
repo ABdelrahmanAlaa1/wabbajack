@@ -65,6 +65,8 @@
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
                     <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
                     <RowDefinition Height="*" />
                     <RowDefinition Height="Auto" />
                 </Grid.RowDefinitions>
@@ -97,7 +99,30 @@
                                       IsEnabled="{Binding LoadingLock.IsNotLoading}" />
                 </StackPanel>
 
-                <Grid Grid.Row="3">
+                <StackPanel x:Name="GameFolderPanel" Grid.Row="2" Style="{StaticResource Panel}">
+                    <TextBlock Style="{StaticResource TitleStyle}" Text="Game Folder (Optional)" />
+                    <TextBlock Style="{StaticResource DescriptionStyle}">
+                        Only needed if the game was moved or copied to another location.<LineBreak />
+                        Leave empty to auto-detect the game location from Steam, GOG, Epic, etc.
+                    </TextBlock>
+                    <local:FilePicker x:Name="GameFolderPicker"
+                                      Style="{StaticResource PickerStyle}"
+                                      Icon="Folder"
+                                      ToolTip="Path to the game folder (optional - only needed for moved/copied games)"
+                                      IsEnabled="{Binding LoadingLock.IsNotLoading}" />
+                </StackPanel>
+
+                <StackPanel x:Name="ExternalBrowserPanel" Grid.Row="3" Style="{StaticResource Panel}">
+                    <CheckBox x:Name="UseExternalBrowserCheckBox"
+                              Content="Use External Browser with Floating Companion"
+                              Foreground="White"
+                              FontSize="9"
+                              ToolTip="When enabled, mod links will open in your default browser with a floating navigation window instead of the embedded browser."
+                              IsEnabled="{Binding LoadingLock.IsNotLoading}"
+                              Margin="0,5,0,0" />
+                </StackPanel>
+
+                <Grid Grid.Row="5">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />

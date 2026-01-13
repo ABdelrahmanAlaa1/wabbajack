@@ -464,14 +464,18 @@ public abstract class AInstaller<T>
                 gameFolders.Add(p);
         }
 
-        AddIfValid(_gameLocator.GameLocation(_configuration.Game));
+        // Use the configuration's GameFolder which was set during Begin()
+        AddIfValid(_configuration.GameFolder);
 
         
         // .othergames should only be non-null if the compiled list specifically named othergames
         foreach (var g in _configuration.OtherGames ?? Array.Empty<Game>())
         {
             _logger.LogInformation("Also searching othergame folder for {Game}", g);
-            AddIfValid(_gameLocator.GameLocation(g));
+            if (_gameLocator.TryFindLocation(g, out var otherGamePath))
+            {
+                AddIfValid(otherGamePath);
+            }
         }
 
         // Enumerate downloads + every game folder
